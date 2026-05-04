@@ -1,40 +1,35 @@
 # ============================================================
-# docker-compose.yml — Data & Airflow Platform
+# docker-compose.yml — Data & Airflow Platform (DEV)
 # Docker Compose v2  |  Airflow 2.9.1  |  PostgreSQL 15
+# ⚠️  Hardcoded credentials — DEV ONLY, do not use in production
 # ============================================================
 # Usage:
-#   docker compose up --build -d
+#   docker compose -f docker/docker-compose.yml up -d
 #   Airflow UI → http://localhost:8080  (admin / admin)
 # ============================================================
 
+# Anchor 1 — environment variables only
+x-airflow-env: &airflow-env
+  AIRFLOW__CORE__EXECUTOR: LocalExecutor
+  AIRFLOW__CORE__FERNET_KEY: "d6clCbpJSB0EpStgQjMYMPilY8VfFDvXL-6C-xtEFSA="
+  AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+  AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "true"
+  AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: "postgresql+psycopg2://airflow:airflow@postgres:5432/airflow"
+  AIRFLOW__WEBSERVER__SECRET_KEY: "dev_secret_key_do_not_use_in_prod"
+  AIRFLOW__WEBSERVER__EXPOSE_CONFIG: "false"
+  AIRFLOW__LOGGING__LOGGING_LEVEL: INFO
+
+# Anchor 2 — full service definition shared by webserver, scheduler, init
 x-airflow-common: &airflow-common
-  build:
-    context: .
-    dockerfile: Dockerfile
   image: data-airflow:latest
-  env_file:
-    - .env
   environment:
-    # ----- Core -----
-    AIRFLOW__CORE__EXECUTOR: LocalExecutor
-    AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW_FERNET_KEY}
-    AIRFLOW__CORE__LOAD_EXAMPLES: "false"
-    AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "true"
-    # ----- Database -----
-    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: >-
-      postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
-    # ----- Webserver -----
-    AIRFLOW__WEBSERVER__SECRET_KEY: ${AIRFLOW_SECRET_KEY}
-    AIRFLOW__WEBSERVER__EXPOSE_CONFIG: "false"
-    # ----- Logging -----
-    AIRFLOW__LOGGING__LOGGING_LEVEL: INFO
+    <<: *airflow-env
   volumes:
-    - Airflow/dags:/opt/airflow/dags
-    - Airflow/plugins:/opt/airflow/plugins
-    - Airflow/logs:/opt/airflow/logs
-    # raw/ is mounted READ-ONLY — containers must never modify source data
-    - data/bronze:/opt/airflow/data/raw
-    - data/silver:/opt/airflow/data/processed
+    - ../Airflow/dags:/opt/airflow/dags
+    - ../Airflow/plugins:/opt/airflow/plugins
+    - ../Airflow/logs:/opt/airflow/logs
+    - ../data/bronze:/opt/airflow/data/raw:ro
+    - ../data/silver:/opt/airflow/data/processed
   depends_on:
     postgres:
       condition: service_healthy
@@ -50,48 +45,45 @@ services:
   # ----------------------------------------------------------
   postgres:
     image: postgres:15-alpine
-    env_file:
-      - .env
     environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: airflow
     volumes:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      test: ["CMD-SHELL", "pg_isready -U airflow -d airflow"]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 10
+      start_period: 30s
     restart: unless-stopped
     networks:
       - data-net
 
   # ----------------------------------------------------------
   # Airflow — DB init & first-run admin account creation
-  # Runs once then exits (restart: "no")
+  # Owns the build — webserver & scheduler reuse the resulting image.
   # ----------------------------------------------------------
   airflow-init:
     <<: *airflow-common
-    command: >
-      bash -c "
-        airflow db upgrade &&
-        airflow users create
-          --username $$AIRFLOW_ADMIN_USER
-          --password $$AIRFLOW_ADMIN_PASSWORD
-          --firstname Admin
-          --lastname User
-          --role Admin
-          --email $$AIRFLOW_ADMIN_EMAIL
-      "
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    entrypoint: /bin/bash
+    command:
+      - -c
+      - |
+        airflow db upgrade
+        airflow users create \
+          --username admin \
+          --password admin \
+          --firstname Admin \
+          --lastname User \
+          --role Admin \
+          --email admin@example.com
     environment:
-      <<: *airflow-common
-      # Explicit re-declaration so the yaml anchor resolves correctly
-      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: >-
-        postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
-      AIRFLOW_ADMIN_USER: ${AIRFLOW_ADMIN_USER}
-      AIRFLOW_ADMIN_PASSWORD: ${AIRFLOW_ADMIN_PASSWORD}
-      AIRFLOW_ADMIN_EMAIL: ${AIRFLOW_ADMIN_EMAIL}
+      <<: *airflow-env
     restart: "no"
 
   # ----------------------------------------------------------
