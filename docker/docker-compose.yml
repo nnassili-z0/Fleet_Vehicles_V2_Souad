@@ -1,1 +1,142 @@
+# ============================================================
+# docker-compose.yml — Data & Airflow Platform
+# Docker Compose v2  |  Airflow 2.9.1  |  PostgreSQL 15
+# ============================================================
+# Usage:
+#   docker compose up --build -d
+#   Airflow UI → http://localhost:8080  (admin / admin)
+# ============================================================
 
+x-airflow-common: &airflow-common
+  build:
+    context: .
+    dockerfile: Dockerfile
+  image: data-airflow:latest
+  env_file:
+    - .env
+  environment:
+    # ----- Core -----
+    AIRFLOW__CORE__EXECUTOR: LocalExecutor
+    AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW_FERNET_KEY}
+    AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+    AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "true"
+    # ----- Database -----
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: >-
+      postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+    # ----- Webserver -----
+    AIRFLOW__WEBSERVER__SECRET_KEY: ${AIRFLOW_SECRET_KEY}
+    AIRFLOW__WEBSERVER__EXPOSE_CONFIG: "false"
+    # ----- Logging -----
+    AIRFLOW__LOGGING__LOGGING_LEVEL: INFO
+  volumes:
+    - ./dags:/opt/airflow/dags
+    - ./plugins:/opt/airflow/plugins
+    - ./logs:/opt/airflow/logs
+    # raw/ is mounted READ-ONLY — containers must never modify source data
+    - ./data/raw:/opt/airflow/data/raw:ro
+    - ./data/processed:/opt/airflow/data/processed
+  depends_on:
+    postgres:
+      condition: service_healthy
+  restart: unless-stopped
+  networks:
+    - data-net
+
+# ============================================================
+services:
+
+  # ----------------------------------------------------------
+  # PostgreSQL — Airflow metadata database
+  # ----------------------------------------------------------
+  postgres:
+    image: postgres:15-alpine
+    env_file:
+      - .env
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - data-net
+
+  # ----------------------------------------------------------
+  # Airflow — DB init & first-run admin account creation
+  # Runs once then exits (restart: "no")
+  # ----------------------------------------------------------
+  airflow-init:
+    <<: *airflow-common
+    command: >
+      bash -c "
+        airflow db upgrade &&
+        airflow users create
+          --username $$AIRFLOW_ADMIN_USER
+          --password $$AIRFLOW_ADMIN_PASSWORD
+          --firstname Admin
+          --lastname User
+          --role Admin
+          --email $$AIRFLOW_ADMIN_EMAIL
+      "
+    environment:
+      <<: *airflow-common
+      # Explicit re-declaration so the yaml anchor resolves correctly
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: >-
+        postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      AIRFLOW_ADMIN_USER: ${AIRFLOW_ADMIN_USER}
+      AIRFLOW_ADMIN_PASSWORD: ${AIRFLOW_ADMIN_PASSWORD}
+      AIRFLOW_ADMIN_EMAIL: ${AIRFLOW_ADMIN_EMAIL}
+    restart: "no"
+
+  # ----------------------------------------------------------
+  # Airflow Webserver — UI on port 8080
+  # ----------------------------------------------------------
+  airflow-webserver:
+    <<: *airflow-common
+    command: webserver
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    depends_on:
+      airflow-init:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+
+  # ----------------------------------------------------------
+  # Airflow Scheduler — DAG execution engine
+  # ----------------------------------------------------------
+  airflow-scheduler:
+    <<: *airflow-common
+    command: scheduler
+    healthcheck:
+      test: ["CMD", "airflow", "jobs", "check", "--job-type", "SchedulerJob", "--hostname", "$${HOSTNAME}"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    depends_on:
+      airflow-init:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+
+# ============================================================
+volumes:
+  postgres-data:
+    driver: local
+
+networks:
+  data-net:
+    driver: bridge
