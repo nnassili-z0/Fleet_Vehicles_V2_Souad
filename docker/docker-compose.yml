@@ -29,12 +29,12 @@ x-airflow-common: &airflow-common
     # ----- Logging -----
     AIRFLOW__LOGGING__LOGGING_LEVEL: INFO
   volumes:
-    - ./dags:/opt/airflow/dags
-    - ./plugins:/opt/airflow/plugins
-    - ./logs:/opt/airflow/logs
+    - ../Airflow/dags:/opt/airflow/dags
+    - ../Airflow/plugins:/opt/airflow/plugins
+    - ../Airflow/logs:/opt/airflow/logs
     # raw/ is mounted READ-ONLY — containers must never modify source data
-    - ./data/raw:/opt/airflow/data/raw:ro
-    - ./data/processed:/opt/airflow/data/processed
+    - ../data/bronze:/opt/airflow/data/raw
+    - ../data/silver:/opt/airflow/data/processed
   depends_on:
     postgres:
       condition: service_healthy

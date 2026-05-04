@@ -18,13 +18,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 USER airflow
 
 # Copy and install Python dependencies
-COPY requirements.txt /requirements.txt
+COPY requirements.txt ../requirements.txt
 RUN pip install --no-cache-dir --upgrade pip \
-    && pip install --no-cache-dir -r /requirements.txt
+    && pip install --no-cache-dir -r ../requirements.txt
 
 # Copy DAGs and plugins into the image
 # (can also be mounted as volumes in docker-compose)
-COPY --chown=airflow:root dags/ ${AIRFLOW_HOME}/dags/
-COPY --chown=airflow:root plugins/ ${AIRFLOW_HOME}/plugins/
+COPY --chown=airflow:root ../Airflow/dags/ ${AIRFLOW_HOME}/dags/
+COPY --chown=airflow:root ../Airflow/plugins/ ${AIRFLOW_HOME}/plugins/
 
 # Default entrypoint is inherited from the base image
