@@ -18,6 +18,10 @@ x-airflow-env: &airflow-env
   AIRFLOW__WEBSERVER__SECRET_KEY: "dev_secret_key_do_not_use_in_prod"
   AIRFLOW__WEBSERVER__EXPOSE_CONFIG: "false"
   AIRFLOW__LOGGING__LOGGING_LEVEL: INFO
+  AIRFLOW__WEBSERVER__WORKERS: "2"
+  AIRFLOW__WEBSERVER__WEB_SERVER_WORKER_TIMEOUT: "300"
+  AIRFLOW__CORE__LAZY_LOAD_PLUGINS: "true"
+  AIRFLOW__CORE__LAZY_DISCOVER_PROVIDERS: "true"
 
 # Anchor 2 — full service definition shared by webserver, scheduler, init
 x-airflow-common: &airflow-common
@@ -91,7 +95,7 @@ services:
   # ----------------------------------------------------------
   airflow-webserver:
     <<: *airflow-common
-    command: webserver
+    command: webserver --workers 2 --worker-timeout 300
     ports:
       - "8080:8080"
     healthcheck:
