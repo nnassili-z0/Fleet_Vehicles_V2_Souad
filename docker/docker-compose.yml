@@ -34,6 +34,7 @@ x-airflow-common: &airflow-common
     - ../Airflow/logs:/opt/airflow/logs
     - ../data/bronze:/opt/airflow/data/raw:ro
     - ../data/silver:/opt/airflow/data/processed
+    - ../src:/opt/airflow/src
   depends_on:
     postgres:
       condition: service_healthy
