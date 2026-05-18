@@ -35,6 +35,7 @@ x-airflow-common: &airflow-common
     - ../data/bronze:/opt/airflow/data/raw:ro
     - ../data/silver:/opt/airflow/data/processed
     - ../src:/opt/airflow/src
+    - ../data/gold:/opt/airflow/data/gold
   depends_on:
     postgres:
       condition: service_healthy
