@@ -1,0 +1,112 @@
+{
+  "metadata": {
+    "timestamp": "2026-05-22T14:03:51.050954",
+    "execution_id": "20260522_135345",
+    "entity_type": "vehicle",
+    "pipeline_stage": "bronze_to_silver"
+  },
+  "results": {
+    "total_checks": 5,
+    "passed_checks": 3,
+    "failed_checks": 2,
+    "has_critical_issues": true,
+    "critical_issue_count": 1,
+    "all_results": [
+      {
+        "check_name": "vehicle_schema_consistency",
+        "passed": false,
+        "issues": [
+          {
+            "check_name": "vehicle_schema_consistency",
+            "severity": "CRITICAL",
+            "description": "Schema inconsistency detected",
+            "affected_rows": 2500,
+            "affected_columns": [
+              "Year",
+              "EngineType",
+              "ExteriorColor",
+              "Model",
+              "InteriorColor",
+              "auto_id",
+              "DriveTrain",
+              "Transmission",
+              "VIN",
+              "make",
+              "transmission",
+              "owner_id",
+              "Make",
+              "OwnerID",
+              "vin",
+              "AutoID",
+              "year"
+            ],
+            "details": {
+              "missing_columns": [
+                "auto_id",
+                "make",
+                "transmission",
+                "owner_id",
+                "vin",
+                "year"
+              ],
+              "extra_columns": [
+                "EngineType",
+                "ExteriorColor",
+                "Model",
+                "InteriorColor",
+                "VIN",
+                "Make",
+                "OwnerID",
+                "AutoID",
+                "DriveTrain",
+                "Year",
+                "Transmission"
+              ]
+            },
+            "timestamp": "2026-05-22T14:03:50.969858"
+          }
+        ],
+        "total_rows_checked": 2500,
+        "execution_time_ms": 0.0
+      },
+      {
+        "check_name": "vehicle_null_constraints",
+        "passed": true,
+        "issues": [],
+        "total_rows_checked": 2500,
+        "execution_time_ms": 0.0
+      },
+      {
+        "check_name": "vehicle_value_range_year",
+        "passed": false,
+        "issues": [
+          {
+            "check_name": "vehicle_value_range_year",
+            "severity": "ERROR",
+            "description": "Column 'year' not found",
+            "affected_rows": 0,
+            "affected_columns": [],
+            "details": {},
+            "timestamp": "2026-05-22T14:03:50.970488"
+          }
+        ],
+        "total_rows_checked": 2500,
+        "execution_time_ms": 0.0
+      },
+      {
+        "check_name": "vehicle_vin_format",
+        "passed": true,
+        "issues": [],
+        "total_rows_checked": 2500,
+        "execution_time_ms": 0.0
+      },
+      {
+        "check_name": "vehicle_duplicates",
+        "passed": true,
+        "issues": [],
+        "total_rows_checked": 2500,
+        "execution_time_ms": 0.0
+      }
+    ]
+  }
+}

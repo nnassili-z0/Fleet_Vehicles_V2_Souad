@@ -1,0 +1,92 @@
+{
+  "metadata": {
+    "timestamp": "2026-05-22T14:06:35.970307",
+    "execution_id": "20260522_135631",
+    "entity_type": "driver",
+    "pipeline_stage": "bronze_to_silver"
+  },
+  "results": {
+    "total_checks": 5,
+    "passed_checks": 4,
+    "failed_checks": 1,
+    "has_critical_issues": true,
+    "critical_issue_count": 1,
+    "all_results": [
+      {
+        "check_name": "driver_schema_consistency",
+        "passed": false,
+        "issues": [
+          {
+            "check_name": "driver_schema_consistency",
+            "severity": "CRITICAL",
+            "description": "Schema inconsistency detected",
+            "affected_rows": 998,
+            "affected_columns": [
+              "EmailAddress",
+              "PhoneNumber",
+              "FaxNumber",
+              "DateOfBirth",
+              "full_name",
+              "date_of_birth",
+              "person_id",
+              "PersonID",
+              "gender",
+              "FullName",
+              "Gender",
+              "PreferredName"
+            ],
+            "details": {
+              "missing_columns": [
+                "full_name",
+                "gender",
+                "date_of_birth",
+                "person_id"
+              ],
+              "extra_columns": [
+                "EmailAddress",
+                "PhoneNumber",
+                "FaxNumber",
+                "DateOfBirth",
+                "PersonID",
+                "FullName",
+                "Gender",
+                "PreferredName"
+              ]
+            },
+            "timestamp": "2026-05-22T14:06:35.902848"
+          }
+        ],
+        "total_rows_checked": 998,
+        "execution_time_ms": 0.0
+      },
+      {
+        "check_name": "driver_null_constraints",
+        "passed": true,
+        "issues": [],
+        "total_rows_checked": 998,
+        "execution_time_ms": 0.0
+      },
+      {
+        "check_name": "driver_date_of_birth_validity",
+        "passed": true,
+        "issues": [],
+        "total_rows_checked": 998,
+        "execution_time_ms": 0.0
+      },
+      {
+        "check_name": "driver_gender_values",
+        "passed": true,
+        "issues": [],
+        "total_rows_checked": 998,
+        "execution_time_ms": 0.0
+      },
+      {
+        "check_name": "driver_duplicates",
+        "passed": true,
+        "issues": [],
+        "total_rows_checked": 998,
+        "execution_time_ms": 0.0
+      }
+    ]
+  }
+}

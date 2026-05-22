@@ -1,0 +1,6 @@
+auto_id,full_name,safety_score,efficiency_score,total_trips,harsh_events_count,speeding_events_count,overall_risk_level
+2,Vehicle 2,97.76,96.27,1561,70,0,LOW
+3,Vehicle 3,97.76,96.27,1561,70,0,LOW
+4,Vehicle 4,98.32,90.37,2296,77,0,LOW
+5,Vehicle 5,99.52,96.91,735,7,0,LOW
+6,Vehicle 6,99.52,96.91,735,7,0,LOW

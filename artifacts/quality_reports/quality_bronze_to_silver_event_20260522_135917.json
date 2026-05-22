@@ -1,0 +1,124 @@
+{
+  "metadata": {
+    "timestamp": "2026-05-22T13:59:18.585915",
+    "execution_id": "20260522_135917",
+    "entity_type": "event",
+    "pipeline_stage": "bronze_to_silver"
+  },
+  "results": {
+    "total_checks": 8,
+    "passed_checks": 6,
+    "failed_checks": 2,
+    "has_critical_issues": true,
+    "critical_issue_count": 1,
+    "all_results": [
+      {
+        "check_name": "event_schema_consistency",
+        "passed": false,
+        "issues": [
+          {
+            "check_name": "event_schema_consistency",
+            "severity": "CRITICAL",
+            "description": "Schema inconsistency detected",
+            "affected_rows": 6889,
+            "affected_columns": [
+              "auto_id",
+              "AutoID",
+              "EventMessage",
+              "EventID",
+              "ignition_status",
+              "gear_lever_position",
+              "EventCategoryID",
+              "transmission_gear_position",
+              "event_id",
+              "door_status"
+            ],
+            "details": {
+              "missing_columns": [
+                "auto_id",
+                "event_id"
+              ],
+              "extra_columns": [
+                "AutoID",
+                "EventMessage",
+                "ignition_status",
+                "gear_lever_position",
+                "EventCategoryID",
+                "transmission_gear_position",
+                "EventID",
+                "door_status"
+              ]
+            },
+            "timestamp": "2026-05-22T13:59:18.209768"
+          }
+        ],
+        "total_rows_checked": 6889,
+        "execution_time_ms": 0.0
+      },
+      {
+        "check_name": "event_null_constraints",
+        "passed": true,
+        "issues": [],
+        "total_rows_checked": 6889,
+        "execution_time_ms": 0.0
+      },
+      {
+        "check_name": "event_timestamp_validity",
+        "passed": false,
+        "issues": [
+          {
+            "check_name": "event_timestamp_validity",
+            "severity": "ERROR",
+            "description": "Invalid timestamps detected",
+            "affected_rows": "6889",
+            "affected_columns": [
+              "timestamp"
+            ],
+            "details": {
+              "future_count": 0,
+              "too_old_count": 6889
+            },
+            "timestamp": "2026-05-22T13:59:18.222433"
+          }
+        ],
+        "total_rows_checked": 6889,
+        "execution_time_ms": 0.0
+      },
+      {
+        "check_name": "event_odometer_monotonic",
+        "passed": true,
+        "issues": [],
+        "total_rows_checked": 6889,
+        "execution_time_ms": 0.0
+      },
+      {
+        "check_name": "event_value_range_vehicle_speed",
+        "passed": true,
+        "issues": [],
+        "total_rows_checked": 6889,
+        "execution_time_ms": 0.0
+      },
+      {
+        "check_name": "event_value_range_fuel_level",
+        "passed": true,
+        "issues": [],
+        "total_rows_checked": 6889,
+        "execution_time_ms": 0.0
+      },
+      {
+        "check_name": "event_coordinates_validity",
+        "passed": true,
+        "issues": [],
+        "total_rows_checked": 6889,
+        "execution_time_ms": 0.0
+      },
+      {
+        "check_name": "event_duplicates",
+        "passed": true,
+        "issues": [],
+        "total_rows_checked": 6889,
+        "execution_time_ms": 0.0
+      }
+    ]
+  }
+}

@@ -33,16 +33,10 @@ logs/
 .env.production
 
 # Data
-data/bronze/
-data/silver/
-data/gold/
-data/.temp/
+# Keep data files in the repository to mirror local state.
 
 # Artifacts
-artifacts/logs/*
-artifacts/quality_reports/*
-!artifacts/logs/.gitkeep
-!artifacts/quality_reports/.gitkeep
+# Keep generated artifacts in the repository as well.
 
 # Testing
 .coverage
