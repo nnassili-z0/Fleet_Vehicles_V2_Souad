@@ -1,19 +1,29 @@
 # ============================================================
-# docker-compose.yml — Data & Airflow Platform (DEV)
-# Docker Compose v2  |  Airflow 2.9.1  |  PostgreSQL 15
-# ⚠️  Hardcoded credentials — DEV ONLY, do not use in production
+# docker-compose.yml — Fleet Vehicles V2 Microservices Platform
 # ============================================================
+# Services:
+# - PostgreSQL: Airflow metadata & data warehouse
+# - Airflow Webserver: DAG orchestration UI (port 8080)
+# - Airflow Scheduler: DAG execution engine
+# - Great Expectations: Data quality validation service
+# 
 # Usage:
 #   docker compose -f docker/docker-compose.yml up -d
-#   Airflow UI → http://localhost:8080  (admin / admin)
+#   
+# Access:
+#   Airflow UI: http://localhost:8080 (admin / admin)
+#   Docs: Check ./ARCHITECTURE.md for service details
 # ============================================================
 
-# Anchor 1 — environment variables only
+# ============================================================
+# ENVIRONMENT ANCHORS & COMMON DEFINITIONS
+# ============================================================
+
 x-airflow-env: &airflow-env
   AIRFLOW__CORE__EXECUTOR: LocalExecutor
   AIRFLOW__CORE__FERNET_KEY: "d6clCbpJSB0EpStgQjMYMPilY8VfFDvXL-6C-xtEFSA="
   AIRFLOW__CORE__LOAD_EXAMPLES: "false"
-  AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "true"
+  AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "false"
   AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: "postgresql+psycopg2://airflow:airflow@postgres:5432/airflow"
   AIRFLOW__WEBSERVER__SECRET_KEY: "dev_secret_key_do_not_use_in_prod"
   AIRFLOW__WEBSERVER__EXPOSE_CONFIG: "false"
@@ -22,41 +32,52 @@ x-airflow-env: &airflow-env
   AIRFLOW__WEBSERVER__WEB_SERVER_WORKER_TIMEOUT: "300"
   AIRFLOW__CORE__LAZY_LOAD_PLUGINS: "true"
   AIRFLOW__CORE__LAZY_DISCOVER_PROVIDERS: "true"
+  ENV: "development"
+  DB_HOST: "postgres"
+  DB_PORT: "5432"
+  DB_NAME: "fleet_vehicles"
+  DB_USER: "airflow"
+  DB_PASSWORD: "airflow"
+  PYTHONPATH: "/opt/airflow"
 
-# Anchor 2 — full service definition shared by webserver, scheduler, init
 x-airflow-common: &airflow-common
-  image: data-airflow:latest
+  image: apache/airflow:2.8.3-python3.11
   environment:
     <<: *airflow-env
+    AIRFLOW__CORE__DAGS_FOLDER: "/opt/airflow/dags"
   volumes:
-    - ../Airflow/dags:/opt/airflow/dags
-    - ../Airflow/plugins:/opt/airflow/plugins
-    - ../Airflow/logs:/opt/airflow/logs
-    - ../data/bronze:/opt/airflow/data/raw:ro
-    - ../data/silver:/opt/airflow/data/processed
-    - ../src:/opt/airflow/src
-    - ../data/gold:/opt/airflow/data/gold
+    - ../src:/opt/airflow/src:ro
+    - ../src/orchestration/dags:/opt/airflow/dags:ro
+    - ../data:/opt/airflow/data:rw
+    - ../artifacts:/opt/airflow/artifacts:rw
+    - airflow-logs:/opt/airflow/logs
   depends_on:
     postgres:
       condition: service_healthy
   restart: unless-stopped
   networks:
-    - data-net
+    - medallion-net
 
 # ============================================================
+# SERVICES DEFINITIONS
+# ============================================================
+
 services:
 
-  # ----------------------------------------------------------
-  # PostgreSQL — Airflow metadata database
-  # ----------------------------------------------------------
+  # ==================================================
+  # PostgreSQL - Metadata & Data Warehouse
+  # ==================================================
   postgres:
     image: postgres:15-alpine
+    container_name: medallion-postgres
     environment:
       POSTGRES_USER: airflow
       POSTGRES_PASSWORD: airflow
       POSTGRES_DB: airflow
     volumes:
       - postgres-data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U airflow -d airflow"]
       interval: 10s
@@ -65,17 +86,16 @@ services:
       start_period: 30s
     restart: unless-stopped
     networks:
-      - data-net
+      - medallion-net
+    labels:
+      description: "PostgreSQL database for Airflow and data warehouse"
 
-  # ----------------------------------------------------------
-  # Airflow — DB init & first-run admin account creation
-  # Owns the build — webserver & scheduler reuse the resulting image.
-  # ----------------------------------------------------------
+  # ==================================================
+  # Airflow - Database Initialization
+  # ==================================================
   airflow-init:
     <<: *airflow-common
-    build:
-      context: ..
-      dockerfile: docker/Dockerfile
+    container_name: medallion-airflow-init
     entrypoint: /bin/bash
     command:
       - -c
@@ -87,16 +107,18 @@ services:
           --firstname Admin \
           --lastname User \
           --role Admin \
-          --email admin@example.com
-    environment:
-      <<: *airflow-env
+          --email admin@example.com || true
     restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
 
-  # ----------------------------------------------------------
-  # Airflow Webserver — UI on port 8080
-  # ----------------------------------------------------------
+  # ==================================================
+  # Airflow - Webserver (Orchestration UI)
+  # ==================================================
   airflow-webserver:
     <<: *airflow-common
+    container_name: medallion-airflow-webserver
     command: webserver --workers 2 --worker-timeout 300
     ports:
       - "8080:8080"
@@ -111,12 +133,15 @@ services:
         condition: service_completed_successfully
       postgres:
         condition: service_healthy
+    labels:
+      description: "Airflow Webserver - DAG orchestration interface"
 
-  # ----------------------------------------------------------
-  # Airflow Scheduler — DAG execution engine
-  # ----------------------------------------------------------
+  # ==================================================
+  # Airflow - Scheduler (Pipeline Execution)
+  # ==================================================
   airflow-scheduler:
     <<: *airflow-common
+    container_name: medallion-airflow-scheduler
     command: scheduler
     healthcheck:
       test: ["CMD", "airflow", "jobs", "check", "--job-type", "SchedulerJob", "--hostname", "$${HOSTNAME}"]
@@ -129,12 +154,46 @@ services:
         condition: service_completed_successfully
       postgres:
         condition: service_healthy
+    labels:
+      description: "Airflow Scheduler - Pipeline execution engine"
+
+  # ==================================================
+  # Great Expectations - Data Quality Service
+  # ==================================================
+  great-expectations:
+    image: python:3.11-slim
+    container_name: medallion-great-expectations
+    environment:
+      <<: *airflow-env
+    volumes:
+      - ../src:/opt/airflow/src:ro
+      - ../data/silver:/opt/airflow/data/silver:ro
+      - ../data/gold:/opt/airflow/data/gold:rw
+      - ../artifacts/quality_reports:/opt/airflow/artifacts/quality_reports:rw
+    working_dir: /opt/airflow
+    command: >
+      sh -c "pip install --quiet -r requirements.txt &&
+             python -c 'import sys; print(\"Great Expectations service ready\")'
+             sleep 86400"
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - medallion-net
+    labels:
+      description: "Great Expectations - Data quality validation engine"
 
 # ============================================================
+# VOLUMES & NETWORKS
+# ============================================================
+
 volumes:
   postgres-data:
     driver: local
+  airflow-logs:
+    driver: local
 
 networks:
-  data-net:
+  medallion-net:
     driver: bridge

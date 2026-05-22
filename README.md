@@ -1,29 +1,64 @@
-# Data Platform — Docker Guide
+# Fleet Vehicles V2 - Medallion Architecture Data Platform
 
-## Table of Contents
-- [Prerequisites](#prerequisites)
-- [Project Structure](#project-structure)
-- [Quick Start](#quick-start)
-- [Services](#services)
-- [Accessing Airflow](#accessing-airflow)
-- [Environment Variables](#environment-variables)
-- [Useful Commands](#useful-commands)
-- [Stopping & Cleaning Up](#stopping--cleaning-up)
-- [Troubleshooting](#troubleshooting)
+A production-grade data engineering platform implementing the medallion architecture (Bronze → Silver → Gold) for fleet vehicle telematics and analytics. Built with Apache Airflow, Great Expectations, and PostgreSQL.
 
----
+## Features
 
-## Prerequisites
+- **Medallion Architecture:** Three-layer data organization with progressive transformation
+- **Data Quality Framework:** Integrated detection and validation using Great Expectations
+- **Star Schema Analytics:** Gold layer optimized for analytics with fact and dimension tables
+- **Microservices:** Containerized services (Airflow, PostgreSQL, Great Expectations)
+- **Industrial Standards:** SOLID principles, clean architecture, comprehensive naming conventions
+- **Observable:** Full logging, quality artifacts, and DAG monitoring
+- **Production-Ready:** Scalable design supporting multiple deployment models
+
+## Architecture Overview
+
+```
+Source Systems
+    ↓
+Bronze Layer (Raw Data)
+    ├─ autos.csv
+    ├─ drivers.csv
+    └─ events.csv
+    ↓
+[Quality Detection & Implementation]
+    ↓
+Silver Layer (Cleaned Data)
+    ├─ silver_vehicle.csv
+    ├─ silver_driver.csv
+    └─ silver_events.csv
+    ↓
+[Star Schema Transformation]
+    ↓
+Gold Layer (Analytics Data)
+    ├─ Dimensions: dim_date, dim_time, dim_vehicle, dim_driver
+    ├─ Facts: fact_driving_event, fact_maintenance_alert
+    └─ Analytics: vehicle_kpi, driver_score
+    ↓
+Analytics & Reporting
+```
+
+## Quick Start
+
+### Prerequisites
 
 | Tool | Minimum version |
 |------|----------------|
 | Docker | 24.x |
-| Docker Compose | v2 (`docker compose` — no hyphen) |
+| Docker Compose | v2 |
 
-Verify with:
+### Setup
+
 ```bash
-docker --version          # Docker version 24.x.x
-docker compose version    # Docker Compose version v2.x.x
+# Clone and navigate
+cd fleet_vehicles_v2
+
+# Start services
+docker compose -f docker/docker-compose.yml up -d
+
+# Access Airflow UI
+# http://localhost:8080 (admin / admin)
 ```
 
 ---

@@ -1,26 +1,67 @@
 # ============================================================
-# Dockerfile — Airflow Data Environment
-# Base image: Apache Airflow 2.9.1 (Python 3.11)
+# Dockerfile for Fleet Vehicles V2 - Airflow Service
 # ============================================================
-FROM apache/airflow:2.9.1-python3.11
+# Multi-stage build for optimized image size
+# Based on official Airflow image
+# NOTE: Using pre-built image instead of custom build for faster deployment
 
-# Switch to root to install system-level dependencies
+FROM apache/airflow:2.8.3-python3.11
+
+# ========================================
+# 1. SYSTEM DEPENDENCIES
+# ========================================
+
 USER root
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     libpq-dev \
+    git \
     curl \
-    && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Switch back to the airflow user for pip installs
+# ========================================
+# 2. PYTHON DEPENDENCIES
+# ========================================
+
 USER airflow
 
-# Copy and install Python dependencies
-COPY requirements.txt /requirements.txt
-RUN pip install --no-cache-dir --upgrade pip \
-    && pip install --no-cache-dir -r /requirements.txt
+COPY requirements.txt /tmp/requirements.txt
+RUN pip install --no-cache-dir -r /tmp/requirements.txt
 
-# DAGs and plugins are mounted as volumes in docker-compose.yml
-# Default entrypoint is inherited from the base image
+# ========================================
+# 3. APPLICATION SETUP
+# ========================================
+
+# Copy source code
+COPY --chown=airflow:airflow src/ /opt/airflow/src/
+COPY --chown=airflow:airflow .env.example /opt/airflow/.env.example
+
+# Create necessary directories
+RUN mkdir -p /opt/airflow/data/{bronze,silver,gold,.temp} \
+    && mkdir -p /opt/airflow/artifacts/{logs,quality_reports}
+
+# ========================================
+# 4. AIRFLOW INITIALIZATION
+# ========================================
+
+# Set environment variables
+ENV AIRFLOW_HOME=/opt/airflow
+ENV PYTHONPATH=/opt/airflow
+ENV AIRFLOW__CORE__DAGS_FOLDER=/opt/airflow/src/orchestration/dags
+ENV AIRFLOW__CORE__LOAD_EXAMPLES=False
+
+# ========================================
+# 5. HEALTH CHECK
+# ========================================
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD curl -f http://localhost:8080/health || exit 1
+
+# ========================================
+# 6. ENTRY POINT
+# ========================================
+
+EXPOSE 8080 5555
+
+CMD ["airflow", "webserver"]

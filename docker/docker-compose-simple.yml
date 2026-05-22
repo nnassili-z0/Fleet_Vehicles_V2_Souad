@@ -1,0 +1,109 @@
+version: '3.9'
+
+x-airflow-env: &airflow-env
+  AIRFLOW__CORE__EXECUTOR: LocalExecutor
+  AIRFLOW__CORE__FERNET_KEY: "d6clCbpJSB0EpStgQjMYMPilY8VfFDvXL-6C-xtEFSA="
+  AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+  AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "false"
+  AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: "postgresql+psycopg2://airflow:airflow@postgres:5432/airflow"
+  AIRFLOW__WEBSERVER__SECRET_KEY: "dev_secret_key_do_not_use_in_prod"
+  AIRFLOW__WEBSERVER__EXPOSE_CONFIG: "false"
+  AIRFLOW__LOGGING__LOGGING_LEVEL: INFO
+  AIRFLOW__WEBSERVER__WORKERS: "2"
+  ENV: "development"
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: fleet-postgres
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: airflow
+      POSTGRES_INITDB_ARGS: "-c default_transaction_isolation=read_committed"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U airflow -d airflow"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    restart: unless-stopped
+
+  airflow-init:
+    image: apache/airflow:2.8.3-python3.11
+    container_name: fleet-airflow-init
+    environment:
+      <<: *airflow-env
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ../src:/opt/airflow/src:ro
+      - ../data:/opt/airflow/data:rw
+      - ../artifacts:/opt/airflow/artifacts:rw
+    command: >
+      bash -c "
+      airflow db upgrade &&
+      airflow users create --username admin --password admin --firstname Admin --lastname User --role Admin --email admin@example.com || true
+      "
+    restart: "no"
+
+  airflow-webserver:
+    image: apache/airflow:2.8.3-python3.11
+    container_name: fleet-airflow-webserver
+    environment:
+      <<: *airflow-env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      airflow-init:
+        condition: service_completed_successfully
+    volumes:
+      - ../src:/opt/airflow/src:ro
+      - ../data:/opt/airflow/data:rw
+      - ../artifacts:/opt/airflow/artifacts:rw
+      - airflow-logs:/opt/airflow/logs
+    command: webserver --workers 2 --worker-timeout 300
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    restart: unless-stopped
+
+  airflow-scheduler:
+    image: apache/airflow:2.8.3-python3.11
+    container_name: fleet-airflow-scheduler
+    environment:
+      <<: *airflow-env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      airflow-init:
+        condition: service_completed_successfully
+    volumes:
+      - ../src:/opt/airflow/src:ro
+      - ../data:/opt/airflow/data:rw
+      - ../artifacts:/opt/airflow/artifacts:rw
+      - airflow-logs:/opt/airflow/logs
+    command: scheduler
+    healthcheck:
+      test: ["CMD", "airflow", "jobs", "check", "--job-type", "SchedulerJob", "--hostname", "$${HOSTNAME}"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+
+volumes:
+  postgres-data:
+    driver: local
+  airflow-logs:
+    driver: local

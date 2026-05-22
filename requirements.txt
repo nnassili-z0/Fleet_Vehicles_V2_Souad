@@ -1,32 +1,50 @@
 # ============================================================
-# requirements.txt — Python dependencies for the Data pipeline
-# Pinned to stay compatible with apache-airflow==2.9.1
-# DO NOT add apache-airflow here — it is already installed
-# in the base image and must not be upgraded.
+# requirements.txt — Python dependencies for Fleet Vehicles V2
+# Data Platform with Medallion Architecture
 # ============================================================
 
-# ----- Airflow providers (compatible with 2.9.1) -----
+# ----- Core Airflow (compatible with 2.9.1) -----
 apache-airflow-providers-postgres==5.10.2
 apache-airflow-providers-http==4.10.1
 
-# ----- Data processing -----
+# ----- Data Quality & Great Expectations -----
+great-expectations==0.18.12
+json-schema==0.1.3
+
+# ----- Data Processing -----
 pandas==2.1.4
 numpy==1.26.4
 pyarrow==14.0.2
 openpyxl==3.1.2
 
-# ----- Database -----
+# ----- Database & Connectivity -----
 psycopg2-binary==2.9.9
+sqlalchemy==2.0.23
 
-# ----- HTTP / APIs -----
+# ----- HTTP & APIs -----
 requests==2.31.0
 
-# ----- Utilities -----
+# ----- Configuration Management -----
+pyyaml==6.0.1
 python-dotenv==1.0.1
+
+# ----- Resilience & Retry Logic -----
 tenacity==8.2.3
 
-# ----- Machine Learning -----
+# ----- Analytics & ML -----
 scikit-learn==1.3.2
+
+# ----- Logging & Monitoring -----
+python-json-logger==2.0.7
+
 # ----- Testing -----
 pytest==8.0.0
 pytest-cov==5.0.0
+pytest-mock==3.12.0
+
+# ----- Code Quality -----
+black==23.12.1
+pylint==3.0.3
+mypy==1.7.1
+flake8==6.1.0
+isort==5.13.2

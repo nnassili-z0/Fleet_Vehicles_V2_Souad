@@ -1,0 +1,61 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.Python
+venv/
+ENV/
+env/
+.venv
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Airflow
+airflow.db
+unittests.cfg
+airflow-webserver.pid
+logs/
+
+# Environment
+.env
+.env.local
+.env.production
+
+# Data
+data/bronze/
+data/silver/
+data/gold/
+data/.temp/
+
+# Artifacts
+artifacts/logs/*
+artifacts/quality_reports/*
+!artifacts/logs/.gitkeep
+!artifacts/quality_reports/.gitkeep
+
+# Testing
+.coverage
+.pytest_cache/
+htmlcov/
+
+# Database
+*.sqlite
+*.sqlite3
+
+# OS
+Thumbs.db
+.env
+
+# Docker
+.dockerignore
